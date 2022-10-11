@@ -10,6 +10,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
+	restclient "k8s.io/client-go/rest"
+)
+
+import (
+	"context"
 )
 
 func main() {
@@ -22,6 +28,8 @@ func main() {
 	deploymentName := flag.String("deployment", "", "deployment name")
 	imageName := flag.String("image", "", "new image name")
 	appName := flag.String("app", "app", "application name")
+
+	ctx := context.Background()
 
 	flag.Parse()
 	if *deploymentName == "" {
@@ -43,7 +51,7 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-	deployment, err := clientset.AppsV1beta1().Deployments("default").Get(*deploymentName, metav1.GetOptions{})
+	deployment, err := clientset.AppsV1beta1().Deployments("default").Get(ctx, *deploymentName, metav1.GetOptions{})
 	if err != nil {
 		panic(err.Error())
 	}
@@ -72,7 +80,7 @@ func main() {
 			fmt.Println("The application container not exist in the deployment pods.")
 			os.Exit(0)
 		}
-		_, err := clientset.AppsV1beta1().Deployments("default").Update(deployment)
+		_, err := clientset.AppsV1beta1().Deployments("default").Update(ctx, deployment, metav1.UpdateOptions{})
 		if err != nil {
 			panic(err.Error())
 		}
@@ -84,4 +92,18 @@ func homeDir() string {
 		return h
 	}
 	return os.Getenv("USERPROFILE") // windows
+}
+
+func kubeConfig() *restclient.Config {
+	var kubeconfig *string
+	if home := homeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	if err != nil {
+		panic(err.Error())
+	}
+	return config
 }
